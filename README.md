@@ -68,15 +68,12 @@ Instale dependências e execute:
 # Backend
 cd backend
 npm install
-npm run start
-```
-
-O servidor subirá em `http://localhost:3000`.
 
 ### Rotas do backend
 
 - `GET /auth/url` → retorna URL para login no Dropbox
 - `GET /auth/callback?code=...` → troca code por token, salva em `src/tokens.json`
+- `POST /auth/logout` → limpa tokens locais (desconexão)
 - `GET /files` → lista arquivos da raiz
 - `POST /upload` → formulário multipart (campo `file`), publica no Dropbox
 - `GET /download/*` → baixa arquivo (ex.: `/download//meuarquivo.txt`)
@@ -87,7 +84,8 @@ Tokens persistem em `backend/src/tokens.json`.
 ## Configuração do frontend
 
 Crie e edite `frontend/.env`:
-
+         - Arraste um arquivo para a área tracejada ou clique em "escolha" e selecione.
+         - Após upload, a lista se atualiza com o novo item.
 ```
 VITE_API_URL=http://localhost:3000
 ```
@@ -102,15 +100,9 @@ npm run dev
 ```
 
 Abra `http://localhost:5173` no navegador.
-
-### Fluxo de login
-
 - Na página inicial, clique em "Login Dropbox".
 - Uma janela popup abrirá a autorização do Dropbox.
 - Ao concluir, a janela envia um `postMessage` ao app e fecha.
-- A listagem é atualizada automaticamente.
-
-## Exemplos cURL
 
 Autenticação: obtenha a URL do login
 
@@ -146,14 +138,21 @@ curl -X DELETE "http://localhost:3000/delete//arquivo.txt"
 
 Gerar link temporário para visualizar um arquivo (PDF, imagem, Office via viewer online):
 
+Geração de link temporário bruto:
+
 ```bash
 curl -G --data-urlencode "path=/arquivo.pdf" http://localhost:3000/preview
 ```
 
-Resposta:
+Página interna de preview (frontend): navegação para `/preview?path=<path>&name=<name>` abre:
+- PDF: iframe
+- Imagem: tag `<img>`
+- TXT/CSV/MD: renderização de texto (CSV parseado em tabela, MD convertido em HTML)
+- Office (docx/xlsx/pptx): abre viewer online Microsoft
 
-```json
-{ "url": "https://...temporary_link..." }
+Exemplo direto inline (forçando `Content-Disposition: inline`) para PDF/imagem/txt:
+```bash
+curl -G --data-urlencode "path=/arquivo.pdf" http://localhost:3000/preview/inline -o arquivo.pdf
 ```
 
 ## Testes manuais sugeridos
@@ -162,6 +161,7 @@ Resposta:
    - Acesse a UI e clique em "Login Dropbox".
    - Permita o acesso e aguarde a janela fechar.
    - A badge "Autenticado" deve aparecer.
+  - Clique em "Sair" para desconectar (tokens.json é limpo e precisa relogar depois).
 2. Listar arquivos
    - Clique em "Atualizar" e verifique os itens.
 3. Upload
@@ -173,10 +173,11 @@ Resposta:
    - Clique em "Excluir" e confirme; atualize a lista e verifique a remoção.
 
 6. Preview
-  - PDF: clique no ícone "👁️" e verifique a abertura no viewer do navegador.
-  - DOCX/XLSX/PPTX: ao clicar, deve abrir no Office Online (view.officeapps.live.com).
-  - Imagens (PNG/JPG/GIF): abrir direto em nova aba.
-  - Tipos não reconhecidos: o Dropbox poderá baixar o arquivo.
+  - PDF: botão "👁️" → rota interna `/preview` com iframe.
+  - DOCX/XLSX/PPTX: abre em Office Online.
+  - Imagens (PNG/JPG/GIF/WebP/SVG): exibidas inline.
+  - TXT/CSV/MD: texto renderizado (CSV em tabela, MD convertido).
+  - Outros: tentativa de abrir/download via link temporário.
 
 ### Segurança do preview
 

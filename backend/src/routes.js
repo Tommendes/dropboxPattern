@@ -23,6 +23,29 @@ router.get('/auth/url', (req, res) => {
   res.json({ url });
 });
 
+// Desconectar: revoga o refresh_token (se possível) e apaga tokens persistidos
+router.post('/auth/logout', asyncHandler(async (req, res) => {
+  const fs = require('fs');
+  const { TOKENS_PATH, loadTokens } = require('./dropbox');
+  const tokens = loadTokens();
+  try {
+    if (tokens?.access_token) {
+      // Dropbox não possui um endpoint público simples de revogação de refresh_token.
+      // Opcionalmente poderíamos chamar /2/auth/token/revoke via SDK se necessário.
+      // Aqui optamos por apenas invalidar localmente removendo tokens.json.
+    }
+  } catch (e) {
+    console.warn('[AUTH] Falha ao revogar token, prosseguindo com limpeza local:', e?.message || e);
+  }
+  try {
+    fs.writeFileSync(TOKENS_PATH, '{}', 'utf8');
+  } catch (e) {
+    console.error('[AUTH] Falha ao limpar tokens:', e);
+  }
+  console.log('[AUTH] Logout realizado, tokens limpos.');
+  res.json({ ok: true });
+}));
+
 router.get('/auth/callback', asyncHandler(async (req, res) => {
   const { code, error, error_description } = req.query;
   if (error) {
@@ -183,7 +206,9 @@ router.get('/preview/inline', asyncHandler(async (req, res) => {
     webp: 'image/webp',
     bmp: 'image/bmp',
     svg: 'image/svg+xml',
-    txt: 'text/plain; charset=utf-8'
+    txt: 'text/plain; charset=utf-8',
+    csv: 'text/csv; charset=utf-8',
+    md: 'text/markdown; charset=utf-8'
   };
   const contentType = mimeMap[ext] || fileResp.headers['content-type'] || 'application/octet-stream';
   res.setHeader('Content-Type', contentType);

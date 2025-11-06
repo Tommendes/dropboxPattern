@@ -64,6 +64,14 @@ export const useDropboxStore = defineStore('dropbox', {
       // Usa query param para preservar barras no caminho
       const { data } = await axios.get(`${API_URL}/preview`, { params: { path: pathLower } })
       return data?.url
+    },
+    async logout() {
+      try {
+        await axios.post(`${API_URL}/auth/logout`)
+      } finally {
+        this.files = []
+        this.authenticated = false
+      }
     }
   }
 })

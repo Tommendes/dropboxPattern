@@ -8,6 +8,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useDropboxStore } from '../store/dropboxStore'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -17,6 +18,7 @@ const props = defineProps({
 })
 const loading = ref(false)
 const store = useDropboxStore()
+const router = useRouter()
 
 function isOfficeFile(p) {
   return /\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(p)
@@ -26,6 +28,9 @@ function isPdf(p) {
 }
 function isImage(p) {
   return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(p)
+}
+function isText(p) {
+  return /\.(txt)$/i.test(p)
 }
 
 let win
@@ -44,15 +49,16 @@ async function onPreview() {
     }
     if (!link) throw new Error('Não foi possível gerar o link de visualização')
 
-    if (isOfficeFile(props.name || props.path)) {
+    const fileName = props.name || props.path
+    if (isOfficeFile(fileName)) {
       const viewer = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(link)}`
       if (win) win.location = viewer
-    } else if (isPdf(props.name || props.path) || isImage(props.name || props.path)) {
-      // Para PDF/imagem, usar proxy inline do backend para forçar Content-Disposition inline
-      const inlineUrl = `${API_URL}/preview/inline?path=${encodeURIComponent(props.path)}`
-      if (win) win.location = inlineUrl
+    } else if (isPdf(fileName) || isImage(fileName) || isText(fileName)) {
+      // Fecha aba temporária e navega para página interna de preview rica
+      if (win && !win.closed) try { win.close() } catch (_) {}
+      router.push({ path: '/preview', query: { path: props.path, name: props.name } })
     } else {
-      // Fallback: tentar abrir direto; se o navegador não suportar, o Dropbox fará download
+      // Fallback abriu direto
       if (win) win.location = link
     }
   } catch (e) {

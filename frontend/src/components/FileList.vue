@@ -3,7 +3,25 @@
     <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
       <button @click="onRefresh" :disabled="loading">Atualizar</button>
       <button @click="onLogin" v-if="!authenticated">Login Dropbox</button>
-      <span v-else class="badge">Autenticado</span>
+      <template v-else>
+        <span class="badge">Autenticado</span>
+        <button @click="onLogout">Sair</button>
+      </template>
+    </div>
+
+    <!-- Zona de drag-and-drop para upload -->
+    <div
+      class="dropzone"
+      @dragover.prevent
+      @dragenter.prevent
+      @drop.prevent="onDrop"
+      style="border:2px dashed #9aa0a6; padding:16px; margin-bottom:12px; border-radius:8px; background:#fafbfc;"
+    >
+      Arraste arquivos aqui para enviar ou
+      <label style="color:#1976d2; cursor:pointer;">
+        escolha
+        <input type="file" multiple @change="onPick" style="display:none" />
+      </label>
     </div>
 
     <div v-if="error" style="color:#b00; margin-bottom:8px;">{{ error }}</div>
@@ -72,6 +90,26 @@ async function onDelete(pathLower) {
     await store.deleteFile(pathLower)
     await store.listFiles()
   }
+}
+async function onLogout() {
+  await store.logout()
+}
+async function onPick(e) {
+  const files = Array.from(e.target.files || [])
+  if (!files.length) return
+  for (const f of files) {
+    await store.uploadFile(f)
+  }
+  await store.listFiles()
+  e.target.value = ''
+}
+async function onDrop(e) {
+  const files = Array.from(e.dataTransfer?.files || [])
+  if (!files.length) return
+  for (const f of files) {
+    await store.uploadFile(f)
+  }
+  await store.listFiles()
 }
 function formatDate(iso) {
   if (!iso) return '-'
